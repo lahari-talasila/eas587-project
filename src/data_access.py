@@ -5,7 +5,7 @@ U.S. DOT Bureau of Transportation Statistics (TranStats).
 The primary On-Time table is Table_ID=236. Monthly "prezipped" files follow the pattern:
 
   https://www.transtats.bts.gov/PREZIP/
-      On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_<YYYY>_<M>.zip
+      On_Time_Reporting_Carrier_On_Time_Performance_1987_present_<YYYY>_<M>.zip
 
 BTS occasionally adjusts this filename; verify a single month before batch-downloading.
 
@@ -24,7 +24,7 @@ from pathlib import Path
 import requests
 
 BASE = "https://www.transtats.bts.gov/PREZIP"
-ONTIME_TMPL = "On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_{year}_{month}.zip"
+ONTIME_TMPL = "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_{year}_{month}.zip"
 HEADERS = {"User-Agent": "EAS587-course-project/1.0 (educational use)"}
 
 

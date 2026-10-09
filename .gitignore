@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Phase 2: data is rebuilt by src/pipeline.py, not stored in Git
+data/raw/*
+!data/raw/README.md
+data/processed/
+.venv/
+.DS_Store
+__pycache__/
