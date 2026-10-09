@@ -85,3 +85,25 @@ a U.S. public-domain source. On-Time table: `Table_ID=236`. See
 > Note: raw monthly files and processed Parquet are intentionally **not** committed
 > to keep the repo lightweight; they are fully reproducible with the
 > scripts above.
+
+## Phase 2: Cleaning, EDA and First Analytics
+
+### Reproduce (single entry point)
+```
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python src/pipeline.py --year 2024 --months 1 2 3
+```
+This runs: acquire (calls `src/data_access.py`) -> profile -> clean -> analytics.
+Use `--skip-acquire` if raw CSVs are already in `data/raw/`, or `--stage clean` to run one stage.
+Then open `notebooks/phase2_analysis.ipynb` (loads the processed data only).
+
+### Outputs
+- `data/processed/ontime_clean/*.parquet`: one cleaned file per month (loadable with `pandas.read_parquet`)
+- `data/processed/cancelled_diverted.parquet`: cancelled/diverted flights, kept separate from delay analysis
+- `reports/`: profiling and cleaning stats, summary tables
+- `figures/`: all figures used in `phase2_report.md`
+
+### Layout
+`src/pipeline.py` (entry point), `src/data_cleaning.py` (cleaning + features), `src/analytics.py` (EDA and first analytics).
+Random seed is fixed to 42 everywhere.
