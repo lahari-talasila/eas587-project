@@ -1,0 +1,4 @@
+file,rows_in,rows_clean,cancelled_or_diverted,duplicates_removed,dropped_missing_delay,seconds,peak_df_mb
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_1.csv,547271,525370,21901,0,0,2.2,139.2
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_2.csv,519221,515269,3952,0,0,2.1,136.5
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_3.csv,591767,585413,6354,0,0,2.4,155.1
