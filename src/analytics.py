@@ -25,7 +25,8 @@ sns.set_theme(style="whitegrid", context="talk", font_scale=0.7)
 LOAD_COLS = ["FlightDate", "Year", "Month", "DayOfWeek", "Reporting_Airline", "Origin", "Dest",
              "route", "dep_hour", "season", "distance_bin", "Distance", "DepDelay", "ArrDelay",
              "DepDel15", "ArrDel15", "arr_delay_log", "prev_arr_delay", "leg_of_day",
-             "cause_unreported"] + CAUSES
+             "cause_unreported", "origin_hour_flights", "dest_hour_flights",
+             "origin_day_flights", "arr_outlier_iqr"] + CAUSES
 
 
 def load(columns: list[str] | None = None) -> pd.DataFrame:
@@ -179,19 +180,20 @@ def fig_daily_trend(df: pd.DataFrame):
 
 # ------------------------------------------------------------ missingness
 def fig_missingness(df: pd.DataFrame):
-    cols = ["prev_arr_delay"] + CAUSES
-    delayed = df["ArrDel15"] == 1
-    m = pd.DataFrame({
-        "prev_arr_delay missing": df.groupby("leg_of_day")["prev_arr_delay"]
-        .apply(lambda x: x.isna().mean()),
-    })
+    """Where is the previous-flight delay missing? By leg of day (a plane's first flight has
+    no earlier leg) and by carrier (is any group systematically incomplete?)."""
+    by_leg = df.groupby("leg_of_day")["prev_arr_delay"].apply(lambda x: x.isna().mean()).head(8)
+    by_car = (df.groupby("Reporting_Airline")["prev_arr_delay"]
+              .apply(lambda x: x.isna().mean()).sort_values())
+    pd.DataFrame({"missing_by_leg": by_leg}).to_csv(REPORTS / "missing_prev_by_leg.csv")
+    by_car.rename("missing_share").to_csv(REPORTS / "missing_prev_by_carrier.csv")
     fig, ax = plt.subplots(1, 2, figsize=(11, 4.5))
-    m.head(8).plot(kind="bar", ax=ax[0], legend=False, color="#3b6ea5")
+    by_leg.plot(kind="bar", ax=ax[0], color="#3b6ea5")
     ax[0].set(title="Missing previous-leg delay by leg of day", xlabel="Leg of day",
               ylabel="Share missing")
-    unrep = df.assign(delayed=delayed).groupby("delayed")["cause_unreported"].mean()
-    unrep.plot(kind="bar", ax=ax[1], color="#c0504d")
-    ax[1].set(title="Cause fields unreported", xlabel="Flight 15+ min late?", ylabel="Share")
+    ax[1].barh(by_car.index, by_car.values * 100, color="#c0504d")
+    ax[1].set(title="Missing previous-leg delay by carrier", xlabel="% of flights",
+              ylabel="Carrier")
     return _save(fig, "08_missingness.png")
 
 
@@ -225,12 +227,51 @@ def fig_season_violin(df: pd.DataFrame):
     return _save(fig, "10_season_violin.png")
 
 
+def table_congestion(df: pd.DataFrame, bin_width: int = 5) -> pd.DataFrame:
+    d = df.copy()
+    cap = int(d["origin_hour_flights"].quantile(.99))
+    d["cong_bin"] = (d["origin_hour_flights"].clip(upper=cap) // bin_width) * bin_width
+    t = d.groupby("cong_bin").agg(flights=("DepDelay", "size"), delay15_rate=("DepDel15", "mean"),
+                                  median_dep_delay=("DepDelay", "median")).reset_index()
+    t = t[t["flights"] >= 500]
+    t.to_csv(REPORTS / "congestion_table.csv", index=False)
+    return t
+
+
+def fig_congestion(df: pd.DataFrame):
+    """Does a busier scheduled hour at the origin mean more delays? (pre-departure feature)"""
+    t = table_congestion(df)
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.5))
+    ax[0].plot(t["cong_bin"], t["delay15_rate"] * 100, "o-", color="#3b6ea5")
+    ax[0].set(title="15+ min departure delays vs scheduled congestion",
+              xlabel="Flights scheduled from the same airport in the same hour (binned)",
+              ylabel="% of departures delayed 15+ min")
+    ax[1].plot(t["cong_bin"], t["median_dep_delay"], "o-", color="#c0504d")
+    ax[1].set(title="Median departure delay vs scheduled congestion",
+              xlabel="Flights scheduled from the same airport in the same hour (binned)",
+              ylabel="Median departure delay (min)")
+    return _save(fig, "11_congestion.png")
+
+
+def fig_advance_heatmap(df: pd.DataFrame):
+    """Delay chance using ONLY schedule-time information (weekday and hour). Everything on
+    this chart is known months before departure, which is what an advance-notice model could use."""
+    t = df.pivot_table(index="DayOfWeek", columns="dep_hour", values="DepDel15", aggfunc="mean") * 100
+    t.to_csv(REPORTS / "delay_rate_by_weekday_hour.csv")
+    fig, ax = plt.subplots(figsize=(11, 4.5))
+    sns.heatmap(t, cmap="viridis", ax=ax, cbar_kws={"label": "% of departures delayed 15+ min"})
+    ax.set(title="Delay chance by weekday and scheduled hour (schedule-only information)",
+           xlabel="Scheduled departure hour", ylabel="Day of week (1 = Monday)")
+    return _save(fig, "12_weekday_hour_heatmap.png")
+
+
 def run_all() -> None:
     REPORTS.mkdir(exist_ok=True)
     df = load()
     for fn in (fig_delay_distribution, fig_carrier_box, fig_dep_vs_arr_hexbin,
                fig_inherited_delay_with_residuals, fig_delay_by_hour_hubs, fig_cause_shares,
-               fig_daily_trend, fig_missingness, fig_worst_airports, fig_season_violin):
+               fig_daily_trend, fig_missingness, fig_worst_airports, fig_season_violin,
+               fig_congestion, fig_advance_heatmap):
         print("saved", fn(df))
 
 

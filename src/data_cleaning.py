@@ -50,6 +50,11 @@ def _hhmm_to_minutes(s: pd.Series) -> pd.Series:
     return (s // 100) * 60 + (s % 100)
 
 
+def _hour(s: pd.Series) -> pd.Series:
+    """Scheduled hour of day (0-23) from an hhmm column; -1 if unparseable."""
+    return (_hhmm_to_minutes(s) // 60).fillna(-1).astype("int8")
+
+
 def clean_chunk(df: pd.DataFrame) -> pd.DataFrame:
     """Type casting and text standardization on a single chunk."""
     df = df.copy()
@@ -85,7 +90,7 @@ def handle_delay_causes(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    df["dep_hour"] = (_hhmm_to_minutes(df["CRSDepTime"]) // 60).astype("Int8")
+    df["dep_hour"] = _hour(df["CRSDepTime"])
     df["is_weekend"] = df["DayOfWeek"].isin([6, 7]).astype("int8")
     df["season"] = df["Month"].map(
         {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
@@ -97,6 +102,57 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df["arr_delay_log"] = np.sign(df["ArrDelay"]) * np.log1p(df["ArrDelay"].abs())
     df["dep_delay_log"] = np.sign(df["DepDelay"]) * np.log1p(df["DepDelay"].abs())
     return df
+
+
+def add_congestion_features(df: pd.DataFrame, sched: pd.DataFrame) -> pd.DataFrame:
+    """Congestion features, all knowable before departure (they come from the schedule).
+
+    `sched` holds EVERY scheduled flight of the month, including cancelled and diverted
+    ones, because a cancelled flight still occupied a slot in the schedule.
+      origin_hour_flights : flights scheduled to leave this origin in the same hour that day
+      dest_hour_flights   : flights scheduled to arrive at this destination in the same hour
+      origin_day_flights  : flights scheduled to leave this origin that day
+    """
+    o = (sched.groupby(["Origin", "FlightDate", "dep_hour"]).size()
+         .rename("origin_hour_flights").reset_index())
+    d = (sched.groupby(["Dest", "FlightDate", "arr_hour"]).size()
+         .rename("dest_hour_flights").reset_index())
+    od = (sched.groupby(["Origin", "FlightDate"]).size()
+          .rename("origin_day_flights").reset_index())
+    df = df.merge(o, on=["Origin", "FlightDate", "dep_hour"], how="left")
+    df["arr_hour"] = _hour(df["CRSArrTime"])
+    df = df.merge(d, on=["Dest", "FlightDate", "arr_hour"], how="left")
+    df = df.merge(od, on=["Origin", "FlightDate"], how="left")
+    for c in ["origin_hour_flights", "dest_hour_flights", "origin_day_flights"]:
+        df[c] = df[c].fillna(0).astype("int32")
+    return df
+
+
+def flag_outliers(df: pd.DataFrame):
+    """Tukey fences on arrival delay. Outliers are FLAGGED and KEPT: extreme delays are the
+    cascades we want to study, so removing them would delete the signal."""
+    q1, q3 = df["ArrDelay"].quantile([.25, .75])
+    hi = q3 + 1.5 * (q3 - q1)
+    lo = q1 - 1.5 * (q3 - q1)
+    df["arr_outlier_iqr"] = ((df["ArrDelay"] > hi) | (df["ArrDelay"] < lo)).astype("int8")
+    return df, {"iqr_low": float(lo), "iqr_high": float(hi),
+                "outliers": int(df["arr_outlier_iqr"].sum())}
+
+
+def validate(df: pd.DataFrame) -> dict:
+    """Sanity checks on the cleaned month. Returns counts of rows failing each rule."""
+    month = df["FlightDate"].dt.month
+    checks = {
+        "hour_out_of_range": int((~df["dep_hour"].between(0, 23)).sum()),
+        "nonpositive_distance": int((df["Distance"] <= 0).sum()),
+        "month_mismatch": int((month != df["Month"]).sum()),
+        "arrdel15_inconsistent": int(((df["ArrDelay"] >= 15).astype(int) != df["ArrDel15"]).sum()),
+        "depdel15_inconsistent": int(((df["DepDelay"] >= 15).astype(int) != df["DepDel15"]).sum()),
+        "delay_beyond_48h": int((df["ArrDelay"].abs() > 2880).sum()),
+    }
+    checks["rows"] = len(df)
+    checks["passed"] = all(v == 0 for k, v in checks.items() if k != "rows")
+    return checks
 
 
 def add_rotation_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -117,12 +173,15 @@ def add_rotation_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_month_file(csv_path: Path, chunk_rows: int = CHUNK_ROWS):
     """Process one raw monthly CSV. Returns (clean_df, cancelled_df, stats dict)."""
-    kept, dropped, rows_in = [], [], 0
+    kept, dropped, sched_parts, rows_in = [], [], [], 0
     reader = pd.read_csv(csv_path, usecols=USECOLS, dtype=DTYPES, chunksize=chunk_rows,
                          low_memory=False)
     for i, chunk in enumerate(reader):
         rows_in += len(chunk)
         chunk = clean_chunk(chunk)
+        sched_parts.append(pd.DataFrame({
+            "Origin": chunk["Origin"], "Dest": chunk["Dest"], "FlightDate": chunk["FlightDate"],
+            "dep_hour": _hour(chunk["CRSDepTime"]), "arr_hour": _hour(chunk["CRSArrTime"])}))
         ok, bad = split_cancel_divert(chunk)
         kept.append(ok)
         dropped.append(bad[["FlightDate", "Reporting_Airline", "Origin", "Dest",
@@ -131,6 +190,7 @@ def clean_month_file(csv_path: Path, chunk_rows: int = CHUNK_ROWS):
 
     df = pd.concat(kept, ignore_index=True)
     cancelled = pd.concat(dropped, ignore_index=True)
+    sched = pd.concat(sched_parts, ignore_index=True)
 
     n_before = len(df)
     df = df.drop_duplicates(subset=DEDUP_KEY, keep="first")
@@ -138,13 +198,15 @@ def clean_month_file(csv_path: Path, chunk_rows: int = CHUNK_ROWS):
 
     df = handle_delay_causes(df)
     df = engineer_features(df)
+    df = add_congestion_features(df, sched)
     df = add_rotation_features(df)
     # delay can be missing on otherwise normal rows (rare); drop those, they cannot be analysed
     n_before = len(df)
     df = df.dropna(subset=["ArrDelay", "DepDelay", "ArrDel15", "DepDel15"])
     n_nodelay = n_before - len(df)
 
+    df, outlier_info = flag_outliers(df)
     stats = {"file": csv_path.name, "rows_in": rows_in, "rows_clean": len(df),
              "cancelled_or_diverted": len(cancelled), "duplicates_removed": n_dupes,
-             "dropped_missing_delay": n_nodelay}
+             "dropped_missing_delay": n_nodelay, **outlier_info}
     return df.reset_index(drop=True), cancelled, stats
