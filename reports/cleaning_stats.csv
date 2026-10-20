@@ -1,4 +1,13 @@
-file,rows_in,rows_clean,cancelled_or_diverted,duplicates_removed,dropped_missing_delay,seconds,peak_df_mb
-On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_1.csv,547271,525370,21901,0,0,2.2,139.2
-On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_2.csv,519221,515269,3952,0,0,2.1,136.5
-On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_3.csv,591767,585413,6354,0,0,2.4,155.1
+file,rows_in,rows_clean,cancelled_or_diverted,duplicates_removed,dropped_missing_delay,iqr_low,iqr_high,outliers,seconds,peak_df_mb
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_1.csv,547271,525370,21901,0,0,-59.5,56.5,48786,2.5,146.0
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_10.csv,615497,608514,6983,0,0,-45.5,30.5,46290,2.7,169.1
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_11.csv,575404,571933,3471,0,0,-47.0,33.0,46449,2.6,158.9
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_12.csv,590581,584832,5749,0,0,-55.0,49.0,51716,2.6,162.5
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_2.csv,519221,515269,3952,0,0,-52.5,39.5,38809,2.3,143.2
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_3.csv,591767,585413,6354,0,0,-53.5,46.5,54401,2.6,162.7
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_4.csv,582185,576915,5270,0,0,-49.5,42.5,51701,2.6,160.3
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_5.csv,609743,599226,10517,0,0,-56.5,59.5,61945,2.7,166.5
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_6.csv,611132,601272,9860,0,0,-56.0,56.0,58086,2.7,167.1
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_7.csv,634613,613938,20675,0,0,-64.0,72.0,61992,2.8,170.6
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_8.csv,619025,604303,14722,0,0,-53.0,51.0,61929,2.7,167.9
+On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_9.csv,582622,578262,4360,0,0,-46.0,34.0,47099,2.5,160.7

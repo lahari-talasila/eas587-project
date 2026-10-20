@@ -1,0 +1,13 @@
+hour_out_of_range,nonpositive_distance,month_mismatch,arrdel15_inconsistent,depdel15_inconsistent,delay_beyond_48h,rows,passed,file
+0,0,0,0,0,4,525370,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_1.csv
+0,0,0,0,0,0,608514,True,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_10.csv
+0,0,0,0,0,0,571933,True,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_11.csv
+0,0,0,0,0,2,584832,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_12.csv
+0,0,0,0,0,0,515269,True,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_2.csv
+0,0,0,0,0,2,585413,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_3.csv
+0,0,0,0,0,4,576915,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_4.csv
+0,0,0,0,0,1,599226,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_5.csv
+0,0,0,0,0,1,601272,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_6.csv
+0,0,0,0,0,1,613938,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_7.csv
+0,0,0,0,0,0,604303,True,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_8.csv
+0,0,0,0,0,1,578262,False,On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2024_9.csv
