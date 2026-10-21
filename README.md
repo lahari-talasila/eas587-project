@@ -93,7 +93,7 @@ a U.S. public-domain source. On-Time table: `Table_ID=236`. See
 ```
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python src/pipeline.py --year 2024 --months 1 2 3
+python src/pipeline.py --year 2024 --months 1 2 3 4 5 6 7 8 9 10 11 12
 ```
 This runs: acquire (calls `src/data_access.py`) -> profile -> clean -> analytics.
 Use `--skip-acquire` if raw CSVs are already in `data/raw/`, or `--stage clean` to run one stage.
