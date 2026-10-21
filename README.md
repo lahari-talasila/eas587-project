@@ -14,8 +14,9 @@ through the U.S. air network**, using the full historical record of domestic fli
 published by the U.S. Bureau of Transportation Statistics (BTS). Our primary big dataset
 is the **Airline (Reporting Carrier) On-Time Performance** record (1987–present,
 ~500–600K flights/month, ~110 columns, one CSV file per month, 30+ GB / 200M+ records
-over its full history). We fuse it with the **T-100 Domestic Segment** dataset to add
-route-level capacity/congestion. Dataste is downloaded directly from BTS TranStats.
+over its full history). The plan is to add route-level capacity from the **T-100 Domestic
+Segment** dataset; that join is not part of Phase 2, which builds congestion features from
+On-Time flight counts instead. The data is downloaded directly from BTS TranStats.
 
 See [`research_plan.md`](research_plan.md) for the full plan (goal, background, scope,
 references, data &amp; resources, risks, 12-week timeline, and design decisions).
