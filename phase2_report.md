@@ -56,7 +56,7 @@ Drawn from a random sample of 300,000 flights (fixed seed).
 
 ![Figure 4: Share of flights arriving 15+ minutes late, daily and 7-day mean](figures/07_daily_trend.png)
 
-The 7-day rolling mean shows the share of 15+ minute arrival delays peaking in mid-January (about 0.37), mid-July (about 0.42) and late December, and falling to about 0.1 to 0.15 in September to November. Those spikes are much bigger than normal day-to-day noise, so they're real events I still need to explain.
+The 7-day rolling mean shows the share of 15+ minute arrival delays peaking in mid-January (about 0.37), mid-July (about 0.42) and late December, and falling to about 0.1 to 0.15 in September to November. Those spikes are much bigger than normal day-to-day noise, so they are real events we still need to explain.
 
 Computed on all 6,965,247 flights.
 
@@ -112,7 +112,7 @@ Computed on all 6,965,247 flights.
 
 ![Figure 11: Departure delays vs scheduled congestion](figures/11_congestion.png)
 
-The share of 15+ minute departure delays rises from about 18% at the quietest hours to about 24% near 55 scheduled flights, but the line is bumpy and drops again at the busiest bins. The median only moves from -4 to -1 minutes, so congestion on its own is a weak signal and I'll treat it as one feature among several in Phase 3.
+The share of 15+ minute departure delays rises from about 18% at the quietest hours to about 24% near 55 scheduled flights, but the line is bumpy and drops again at the busiest bins. The median only moves from -4 to -1 minutes, so congestion on its own is a weak signal and we will treat it as one feature among several in Phase 3.
 
 Computed on all 6,965,247 flights.
 
@@ -120,61 +120,67 @@ Computed on all 6,965,247 flights.
 
 ![Figure 12: Delay chance by weekday and scheduled hour](figures/12_weekday_hour_heatmap.png)
 
-Delay chance climbs through the day, from under 10% around 5 to 7 a.m. to about 35% at 8 p.m. on Thursday, Friday and Sunday, so schedule timing alone moves the risk about fivefold. The bright cells between 0 and 4 a.m. likely come from very few flights, so you won't over-read them.
+Delay chance climbs through the day, from under 10% around 5 to 7 a.m. to about 35% at 8 p.m. on Thursday, Friday and Sunday, so schedule timing alone moves the risk about fivefold. The bright cells between 0 and 4 a.m. likely come from very few flights, so we do not read into them.
 
 Computed on all 6,965,247 flights.
 
 
 ## 5. First Analytics Results
-Fig 7 (04_inherited_delay_residuals.png): Theil-Sen slope 0.93. Residuals flat near 0 from 0 to about 225 min. The earliest inbound bins sit above the line (+20 and +7), and the last bin (240) is about -28 where data is thin.
-Fig 8 (06_cause_shares.png): late aircraft about 4 in 10 delay minutes, carrier about a third, weather at most about 10%, similar mix every month.
-Fig 9 (05_delay_by_hour_hubs.png): DFW about 13 min at hour 23, ORD about 12 at hour 22, DEN and CLT about 6 to 7. The CLT spike rests on 80 flights at hour 0 and 2 at hour 1.
-Fig 10 (09_worst_airports.png): ASE about 30% (only 7,307 departures), BWI 28.5%, DFW 27.5%, even the 15th airport is about 23%.
-Fig 11 (11_congestion.png): share of 15+ departure delays about 18% to 24%, bumpy, and the median only moves from -4 to -1 min. Weak signal.
-Fig 12 (12_weekday_hour_heatmap.png): share of 15+ departure delays under 10% around 5 to 7 a.m. and about 35% on Thursday, Friday and Sunday around 8 p.m.
+
+Our Phase 1 plan posed two questions: (1) can pre-departure features predict a 15+ minute delay, and (2) how do delays spread through major hubs. The results below are the first quantitative answers.
+
+**Delay propagation (question 2).** The Theil-Sen resistant regression in Fig 7 gives a slope of 0.93: about 93% of an inbound delay reappears on the next departure. Residuals are flat near zero from 0 to about 225 minutes; the earliest inbound bins sit above the line (+20 and +7 min), and the last bin at 240 drops about 28 minutes where data is thin. This is the strongest single finding so far—inherited delay is the dominant cascade mechanism and will be the most important feature in Phase 3. Limitation: the line assumes linearity across the whole range, and the residual drop at 240 minutes hints the relationship may weaken at extreme delays.
+
+**Delay causes (question 2).** Fig 8 shows late-aircraft delay accounts for about 4 in 10 delay minutes, with carrier delay close behind at roughly a third. Weather is at most about 10% and the mix is similar across months. This confirms that cascades (late aircraft) are the single largest cause category and supports building a cascade-focused model. Limitation: BTS cause categories are assigned by the airline, so the boundary between "carrier" and "late aircraft" may not be consistent across carriers.
+
+**Temporal predictors (question 1).** Fig 9 shows median departure delay at the busiest airports stays early through the morning and then climbs in the afternoon—DFW reaches about 13 minutes late at hour 23, ORD about 12 at hour 22. Fig 12 shows the share of 15+ minute departures under 10% at 5–7 a.m. and about 35% on Thursday, Friday and Sunday around 8 p.m. Together, scheduled hour and day of week produce roughly a fivefold difference in delay risk, making them strong pre-departure features. Limitation: time of day also correlates with inherited delay (afternoon flights follow more prior legs), so the effects may partly overlap.
+
+**Airport-level risk (question 1).** Fig 10 shows ASE at about 30% (only 7,307 departures), BWI 28.5%, DFW 27.5%, and a cluster of Florida airports (FLL, MIA, MCO). Even the 15th airport is near 23%. The mix of big hubs and small seasonal airports means airport identity alone does not explain delays—it will need to be combined with other features.
+
+**Congestion (question 1).** Fig 11 shows the share of 15+ minute delays rises from about 18% to 24% as scheduled congestion grows, but the curve is bumpy and the median only moves from −4 to −1 minutes. Congestion counts alone are a weak predictor and will need other features alongside them in Phase 3.
 
 ## 6. Dead Ends
-- Congestion counts gave only a weak signal.
-- The raw-scale histogram hid the late tail until you tried the log view.
-- A stray .parquet.zip file in the processed folder broke the dataset reader.
-- The conda notebook kernel (pyarrow 19) couldn't read files written by the venv (pyarrow 25).
+- **Congestion counts as a standalone feature.** We expected scheduled congestion (flights per hour at the origin) to be a strong delay predictor, but the delay share only moved from 18% to 24% and the median barely budged. Learned that congestion on its own is too noisy—it will need to be combined with time-of-day and carrier features in Phase 3.
+- **Raw-scale histogram.** The raw arrival-delay histogram hid the late tail entirely because the early-arrival peak dominated the plot. We only saw the delayed subpopulation after applying the signed-log re-expression. Learned to always re-express a skewed variable before deciding what structure is in it.
+- **Stray .parquet.zip in the processed folder.** A leftover zipped Parquet file caused a cryptic ArrowInvalid error when loading the directory. Learned to validate the processed directory before bulk-loading.
+- **pyarrow version mismatch.** The conda notebook kernel (pyarrow 19) could not read Parquet files written by the venv (pyarrow 25). Learned that Parquet format versions matter and that pinning pyarrow in requirements.txt avoids the mismatch.
 
 ## 7. Design Decisions
 1. Outliers: kept, not deleted
 
-What I did: you marked about 9% of flights as extreme delays and left them in the data.
-What I could have done: deleted them.
-Why: long delays are exactly the thing you're studying, so deleting them would delete your answer.
+What we did: marked about 9% of flights as extreme delays using Tukey fences and left them in the data.
+Alternative: delete them.
+Why: long delays are exactly what we are studying, so deleting them would remove the cascade signal.
 
 2. Outlier cutoff: one per month
 
-What I did: you worked out what counts as "extreme" separately for each month.
-What I could have done: used one cutoff for the whole year.
-Why: July has far more big delays than October, so one cutoff would treat the two months unfairly.
+What we did: computed Tukey fences separately for each month.
+Alternative: one set of fences for the whole year.
+Why: July has far more big delays than October, so a single cutoff would overcount summer outliers and undercount fall ones.
 
 3. Delay-cause columns: filled with 0 and a flag
 
-What I did: you put 0 in the blank cause columns and added a cause_unreported column.
-What I could have done: left them blank.
-Why: a blank usually means "not late enough to need a cause." The flag marks the few late flights whose cause is truly unknown.
+What we did: put 0 in the blank cause columns and added a cause_unreported column.
+Alternative: leave them blank.
+Why: a blank cause usually means "not late enough to need a cause." The flag distinguishes those from the few late flights whose cause is genuinely unreported.
 
 4. Previous-flight delay: left blank when there was no earlier flight
 
-What I did: you didn't fill it in for a plane's first flight of the day.
-What I could have done: filled in a guess, like 0 or an average.
-Why: a guess would invent a delay that never happened.
+What we did: left prev_arr_delay missing for a plane's first flight of the day.
+Alternative: fill with 0 or the daily average.
+Why: filling would invent a delay that never happened and bias the inherited-delay analysis.
 
 5. Processing: chunks, one Parquet file per month
 
-What I did: you read each month's file in small pieces and saved each month separately.
-What I could have done: loaded all 7 million rows at once, or used Dask.
-Why: it used only about 150 MB per month and took 31 seconds in total.
+What we did: read each month's CSV in 200K-row chunks, selected 33 of ~110 columns, and saved one Parquet per month.
+Alternative: load all 7 million rows at once, or use Dask.
+Why: chunking kept peak memory at about 150 MB per month and the full pipeline finished in 31 seconds.
 
 6. Plots: drawn from a random sample
 
-What I did: the plots for Figures 1, 2, 3 and 10 use 300,000 or 150,000 flights picked at random (fixed seed, so it's repeatable).
-What I could have done: plotted all 7 million.
-Why: plots stay fast and readable. The tables and totals still use every flight.
+What we did: Figures 1, 2, 3 and 6 use 300,000 or 150,000 flights picked at random (seed=42, repeatable).
+Alternative: plot all 7 million points.
+Why: sampling keeps plots fast and readable without changing the distributions. All summary tables and totals still use every flight.
 
 
 ## 8. Reproducibility Statement
